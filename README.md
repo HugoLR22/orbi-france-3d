@@ -1,6 +1,8 @@
 # orbi-france-3d
 Simulation 3D du système solaire et des satellites français — Qt + Python + données CelesTrak
 
+![Aperçu de l'application](docs/readme_images/orbifrance_demo.png)
+
 # 🌍 OrbiFrance 3D — Simulation spatiale Qt
 
 **OrbiFrance 3D** est une application Qt qui simule le système solaire et affiche les satellites français en orbite autour de la Terre.  

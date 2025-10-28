@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>res/qml/main.qml</file>
+        <file>res/textures/earth.jpg</file>
+    </qresource>
+</RCC>

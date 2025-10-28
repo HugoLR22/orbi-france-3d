@@ -1,4 +1,11 @@
-# C++ objects and libs
+# ==========================
+# Build directories
+# ==========================
+/build/
+
+# ==========================
+# C++ objects and libraries
+# ==========================
 *.slo
 *.lo
 *.o
@@ -10,7 +17,9 @@
 *.dll
 *.dylib
 
-# Qt-es
+# ==========================
+# Qt-specific generated files
+# ==========================
 object_script.*.Release
 object_script.*.Debug
 *_plugin_import.cpp
@@ -32,13 +41,17 @@ Makefile*
 *.qm
 *.prl
 
+# ==========================
 # Qt unit tests
+# ==========================
 target_wrapper.*
 
+# ==========================
 # QtCreator
+# ==========================
 *.autosave
 
-# QtCreator Qml
+# QtCreator QML
 *.qmlproject.user
 *.qmlproject.user.*
 
@@ -52,3 +65,13 @@ compile_commands.json
 *creator.user*
 
 *_qmlcache.qrc
+
+# ==========================
+# CMake files and cache
+# ==========================
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+*.cmake.user

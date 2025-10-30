@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>res/qml/main.qml</file>
-        <file>res/textures/earth.jpg</file>
+        <file>res/textures/earth-day.jpg</file>
+        <file>res/textures/earth-clouds.jpg</file>
     </qresource>
 </RCC>

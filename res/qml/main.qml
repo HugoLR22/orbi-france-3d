@@ -11,6 +11,7 @@ Window {
     property double simTime: 0
 
     View3D {
+        id: view3d
         anchors.fill: parent
 
         environment: SceneEnvironment {
@@ -117,6 +118,62 @@ Window {
         }
 
         // ========================================
+        // TRAJECTOIRE ORBITALE (Version Instantiator)
+        // ========================================
+        Node {
+            id: orbitContainer
+
+            property var orbitPoints: []
+
+            Component {
+                id: orbitPointComponent
+
+                Model {
+                    source: "#Sphere"
+                    scale: Qt.vector3d(0.15, 0.15, 0.15)
+
+                    materials: PrincipledMaterial {
+                        baseColor: "#00ff88"
+                        lighting: PrincipledMaterial.NoLighting
+                        emissiveFactor: Qt.vector3d(2.0, 2.0, 2.0)
+                    }
+                }
+            }
+
+            Component.onCompleted: {
+                var points = orbitPath.generateOrbitPoints()
+                console.log("🛰️ Génération de", points.length, "points d'orbite")
+
+                if (points.length === 0) {
+                    console.error("❌ Aucun point généré!")
+                    return
+                }
+
+                orbitPoints = points
+                console.log("Premier point:", points[0].x, points[0].y, points[0].z)
+
+                // Crée manuellement chaque sphère
+                var createdCount = 0
+                for (var i = 0; i < points.length; i++) {
+                    var point = points[i]
+
+                    // Crée la sphère
+                    var sphere = orbitPointComponent.createObject(orbitContainer, {
+                        "position": Qt.vector3d(point.x, point.y, point.z)
+                    })
+
+                    if (sphere) {
+                        createdCount++
+                    } else {
+                        console.error("Échec création sphère", i)
+                    }
+                }
+
+                console.log("✅", createdCount, "sphères créées sur", points.length)
+            }
+        }
+
+        // ========================================
         // SATELLITE
         // ========================================
         Model {
@@ -134,6 +191,18 @@ Window {
 
             property var pos: orbitCalculator.getSatellitePosition(simTime)
             position: pos
+
+            // Traînée visuelle (optionnel)
+            Model {
+                source: "#Sphere"
+                scale: Qt.vector3d(0.5, 0.5, 0.5)
+                materials: PrincipledMaterial {
+                    baseColor: "#ff3333"
+                    alphaMode: PrincipledMaterial.Blend
+                    opacity: 0.1
+                    lighting: PrincipledMaterial.NoLighting
+                }
+            }
         }
 
         // ========================================
@@ -192,3 +261,4 @@ Window {
         }
     }
 }
+

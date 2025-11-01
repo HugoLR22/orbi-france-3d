@@ -17,6 +17,9 @@ Window {
     property real cameraPanX: 0
     property real cameraPanY: 0
 
+    // === OPTIONS D'AFFICHAGE ORBITE ===
+    property bool showOrbitLine: true
+
     // États de la souris
     property bool isDragging: false
     property bool isPanning: false
@@ -48,8 +51,28 @@ Window {
                     position: Qt.vector3d(0, 0, cameraDistance)
                     fieldOfView: 45
                     clipNear: 1
-                    clipFar: 10000
+                    clipFar: 20000
                 }
+            }
+        }
+
+        // ========================================
+        // FOND ÉTOILÉ - DOIT ÊTRE LE PREMIER OBJET
+        // ========================================
+
+        Model {
+            id: testStars
+            source: "#Sphere"
+            position: Qt.vector3d(0, 0, 0)  // Devant la Terre
+            scale: Qt.vector3d(100, 100, 100)
+
+            materials: DefaultMaterial {
+                diffuseMap: Texture {
+                    id: starsTexture
+                    source: "qrc:/res/textures/stars.jpg"
+                }
+                lighting: DefaultMaterial.NoLighting
+                cullMode: Material.NoCulling
             }
         }
 
@@ -157,7 +180,6 @@ Window {
                     scale: Qt.vector3d(0.015, 0.015, 0.015)  // Très petites sphères
 
                     materials: PrincipledMaterial {
-                        baseColor: orbitColor
                         lighting: PrincipledMaterial.NoLighting
                         emissiveFactor: Qt.vector3d(1.5, 1.5, 1.5)
                     }
@@ -213,22 +235,6 @@ Window {
             property var pos: orbitCalculator.getSatellitePosition(simTime)
             position: pos
         }
-
-        // ========================================
-        // ÉTOILES EN ARRIÈRE-PLAN (optionnel)
-        // ========================================
-        // Décommentez si vous avez une texture de fond étoilé
-        /*
-        Model {
-            source: "#Sphere"
-            scale: Qt.vector3d(-5000, -5000, -5000)  // Négatif pour inverser les normales
-            materials: PrincipledMaterial {
-                baseColorMap: Texture { source: "qrc:/res/textures/stars.jpg" }
-                lighting: PrincipledMaterial.NoLighting
-                cullMode: Material.NoCulling
-            }
-        }
-        */
     }
 
     // ========================================
@@ -280,42 +286,167 @@ Window {
         }
     }
 
+
     // ========================================
     // INTERFACE UTILISATEUR
     // ========================================
 
-    // Slider temporel
+    // Panneau de contrôle
     Rectangle {
         anchors {
             bottom: parent.bottom
             left: parent.left
             right: parent.right
         }
-        height: 80
+        height: 120
         color: "#cc000000"
 
-        Slider {
-            id: timeSlider
-            anchors {
-                top: parent.top
-                left: parent.left
-                right: parent.right
-                margins: 20
-            }
-            from: 0
-            to: 100
-            onValueChanged: simTime = value
-        }
+        Column {
+            anchors.fill: parent
+            anchors.margins: 15
+            spacing: 10
 
-        Text {
-            anchors {
-                top: timeSlider.bottom
-                horizontalCenter: parent.horizontalCenter
-                topMargin: 5
+            // Slider temporel
+            Row {
+                width: parent.width
+                spacing: 10
+
+                Text {
+                    text: "Temps:"
+                    color: "white"
+                    width: 80
+                    verticalAlignment: Text.AlignVCenter
+                    height: timeSlider.height
+                }
+
+                Slider {
+                    id: timeSlider
+                    width: parent.width - 180
+                    from: 0
+                    to: 100
+                    value: 0
+                    onValueChanged: simTime = value
+                }
+
+                Text {
+                    text: simTime.toFixed(1) + " s"
+                    color: "white"
+                    width: 80
+                    verticalAlignment: Text.AlignVCenter
+                    height: timeSlider.height
+                }
             }
-            text: "Temps simulé : " + simTime.toFixed(1)
-            color: "white"
-            font.pixelSize: 14
+
+            // Boutons de contrôle
+            Row {
+                spacing: 10
+
+                Button {
+                    text: "📷 Réinitialiser Vue"
+                    onClicked: {
+                        cameraDistance = 1000
+                        cameraRotationX = -20
+                        cameraRotationY = 0
+                        cameraPanX = 0
+                        cameraPanY = 0
+                    }
+                }
+
+                Button {
+                    text: showOrbitLine ? "🔴 Masquer Orbite" : "🟢 Afficher Orbite"
+                    onClicked: showOrbitLine = !showOrbitLine
+                }
+
+                Text {
+                    text: "Distance: " + cameraDistance.toFixed(0)
+                    color: "#888888"
+                    verticalAlignment: Text.AlignVCenter
+                    height: parent.height
+                    leftPadding: 20
+                }
+            }
+        }
+    }
+
+    // Aide des contrôles
+    Rectangle {
+        anchors {
+            top: parent.top
+            right: parent.right
+            margins: 10
+        }
+        width: 240
+        height: helpColumn.height + 20
+        color: "#cc000000"
+        radius: 5
+
+        Column {
+            id: helpColumn
+            anchors.centerIn: parent
+            spacing: 5
+
+            Text {
+                text: "🖱️ CONTRÔLES CAMÉRA"
+                color: "#00ff88"
+                font.bold: true
+                font.pixelSize: 14
+            }
+            Text {
+                text: "🔄 Clic gauche : Rotation"
+                color: "white"
+                font.pixelSize: 12
+            }
+            Text {
+                text: "✋ Clic droit : Déplacement"
+                color: "white"
+                font.pixelSize: 12
+            }
+            Text {
+                text: "🔍 Molette : Zoom in/out"
+                color: "white"
+                font.pixelSize: 12
+            }
+        }
+    }
+
+    // Informations de debug (coin supérieur gauche)
+    Rectangle {
+        anchors {
+            top: parent.top
+            left: parent.left
+            margins: 10
+        }
+        width: 200
+        height: debugColumn.height + 20
+        color: "#cc000000"
+        radius: 5
+
+        Column {
+            id: debugColumn
+            anchors.centerIn: parent
+            spacing: 3
+
+            Text {
+                text: "🛰️ SATELLITE"
+                color: "#ff3333"
+                font.bold: true
+                font.pixelSize: 12
+            }
+            Text {
+                text: "Position X: " + satellite.pos.x.toFixed(1)
+                color: "white"
+                font.pixelSize: 10
+            }
+            Text {
+                text: "Position Y: " + satellite.pos.y.toFixed(1)
+                color: "white"
+                font.pixelSize: 10
+            }
+            Text {
+                text: "Position Z: " + satellite.pos.z.toFixed(1)
+                color: "white"
+                font.pixelSize: 10
+            }
         }
     }
 }

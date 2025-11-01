@@ -10,6 +10,18 @@ Window {
 
     property double simTime: 0
 
+    // === PROPRIÉTÉS DE CONTRÔLE CAMÉRA ===
+    property real cameraDistance: 1000
+    property real cameraRotationX: -20
+    property real cameraRotationY: 0
+    property real cameraPanX: 0
+    property real cameraPanY: 0
+
+    // États de la souris
+    property bool isDragging: false
+    property bool isPanning: false
+    property point lastMousePos: Qt.point(0, 0)
+
     View3D {
         id: view3d
         anchors.fill: parent
@@ -22,12 +34,23 @@ Window {
             antialiasingQuality: SceneEnvironment.High
         }
 
-        PerspectiveCamera {
-            id: camera
-            position: Qt.vector3d(0, 0, 1000)
-            eulerRotation: Qt.vector3d(0, 0, 0)
-            // Ajustement du champ de vision pour un meilleur cadrage
-            fieldOfView: 45
+        // === CAMÉRA AVEC CONTRÔLES INTERACTIFS ===
+        Node {
+            id: cameraRoot
+            position: Qt.vector3d(cameraPanX, cameraPanY, 0)
+
+            Node {
+                id: cameraRotator
+                eulerRotation: Qt.vector3d(cameraRotationX, cameraRotationY, 0)
+
+                PerspectiveCamera {
+                    id: camera
+                    position: Qt.vector3d(0, 0, cameraDistance)
+                    fieldOfView: 45
+                    clipNear: 1
+                    clipFar: 10000
+                }
+            }
         }
 
         // Lumière principale (Soleil)
@@ -131,7 +154,7 @@ Window {
 
                 Model {
                     source: "#Sphere"
-                    scale: Qt.vector3d(0.03, 0.03, 0.03)  // Très petites sphères
+                    scale: Qt.vector3d(0.015, 0.015, 0.015)  // Très petites sphères
 
                     materials: PrincipledMaterial {
                         baseColor: orbitColor
@@ -206,6 +229,55 @@ Window {
             }
         }
         */
+    }
+
+    // ========================================
+    // GESTION DES CONTRÔLES SOURIS
+    // ========================================
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+
+        onWheel: (wheel) => {
+            let delta = wheel.angleDelta.y / 120
+            cameraDistance = Math.max(200, Math.min(5000, cameraDistance - delta * 50))
+        }
+
+        onPressed: (mouse) => {
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+
+            if (mouse.button === Qt.LeftButton) {
+                isDragging = true
+            } else if (mouse.button === Qt.RightButton || mouse.button === Qt.MiddleButton) {
+                isPanning = true
+            }
+        }
+
+        onReleased: {
+            isDragging = false
+            isPanning = false
+        }
+
+        onPositionChanged: (mouse) => {
+            if (!isDragging && !isPanning)
+                return
+
+            let deltaX = mouse.x - lastMousePos.x
+            let deltaY = mouse.y - lastMousePos.y
+
+            if (isDragging) {
+                cameraRotationY += deltaX * 0.5
+                cameraRotationX = Math.max(-89, Math.min(89, cameraRotationX - deltaY * 0.5))
+            }
+
+            if (isPanning) {
+                let panSpeed = cameraDistance / 500
+                cameraPanX += deltaX * panSpeed
+                cameraPanY -= deltaY * panSpeed
+            }
+
+            lastMousePos = Qt.point(mouse.x, mouse.y)
+        }
     }
 
     // ========================================

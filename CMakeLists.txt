@@ -19,10 +19,12 @@ find_package(Qt6 REQUIRED COMPONENTS Core Quick Quick3D)
 set(SOURCES
     src/main.cpp
     src/orbit/OrbitCalculator.cpp
+    src/orbit/OrbitPath.cpp
 )
 
 set(HEADERS
     src/orbit/OrbitCalculator.h
+    src/orbit/OrbitPath.h
 )
 
 # Fichier de ressources Qt

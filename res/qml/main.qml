@@ -11,6 +11,7 @@ Window {
     property double simTime: 0
 
     View3D {
+        id: view3d
         anchors.fill: parent
 
         environment: SceneEnvironment {
@@ -117,6 +118,60 @@ Window {
         }
 
         // ========================================
+        // TRAJECTOIRE ORBITALE - LIGNE SIMULÉE
+        // ========================================
+        Node {
+            id: orbitContainer
+            visible: showOrbitLine
+
+            property var orbitPoints: []
+
+            Component {
+                id: orbitPointComponent
+
+                Model {
+                    source: "#Sphere"
+                    scale: Qt.vector3d(0.03, 0.03, 0.03)  // Très petites sphères
+
+                    materials: PrincipledMaterial {
+                        baseColor: orbitColor
+                        lighting: PrincipledMaterial.NoLighting
+                        emissiveFactor: Qt.vector3d(1.5, 1.5, 1.5)
+                    }
+                }
+            }
+
+            Component.onCompleted: {
+                var points = orbitPath.generateOrbitPoints()
+                console.log("🛰️ Génération orbite:", points.length, "points")
+
+                if (points.length < 2) {
+                    console.warn("Pas assez de points")
+                    return
+                }
+
+                console.log("📍 Premier point:", points[0].x, points[0].y, points[0].z)
+                orbitPoints = points
+
+                // Créer une sphère pour chaque point
+                var createdCount = 0
+                for (var i = 0; i < points.length; i++) {
+                    var pt = points[i]
+
+                    var sphere = orbitPointComponent.createObject(orbitContainer, {
+                        "position": Qt.vector3d(pt.x, pt.y, pt.z)
+                    })
+
+                    if (sphere !== null) {
+                        createdCount++
+                    }
+                }
+
+                console.log("✅ Orbite créée:", createdCount, "points sur", points.length)
+            }
+        }
+
+        // ========================================
         // SATELLITE
         // ========================================
         Model {
@@ -192,3 +247,4 @@ Window {
         }
     }
 }
+

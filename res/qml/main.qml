@@ -118,10 +118,11 @@ Window {
         }
 
         // ========================================
-        // TRAJECTOIRE ORBITALE (Version Instantiator)
+        // TRAJECTOIRE ORBITALE - LIGNE SIMULÉE
         // ========================================
         Node {
             id: orbitContainer
+            visible: showOrbitLine
 
             property var orbitPoints: []
 
@@ -130,46 +131,43 @@ Window {
 
                 Model {
                     source: "#Sphere"
-                    scale: Qt.vector3d(0.15, 0.15, 0.15)
+                    scale: Qt.vector3d(0.03, 0.03, 0.03)  // Très petites sphères
 
                     materials: PrincipledMaterial {
-                        baseColor: "#00ff88"
+                        baseColor: orbitColor
                         lighting: PrincipledMaterial.NoLighting
-                        emissiveFactor: Qt.vector3d(2.0, 2.0, 2.0)
+                        emissiveFactor: Qt.vector3d(1.5, 1.5, 1.5)
                     }
                 }
             }
 
             Component.onCompleted: {
                 var points = orbitPath.generateOrbitPoints()
-                console.log("🛰️ Génération de", points.length, "points d'orbite")
+                console.log("🛰️ Génération orbite:", points.length, "points")
 
-                if (points.length === 0) {
-                    console.error("❌ Aucun point généré!")
+                if (points.length < 2) {
+                    console.warn("Pas assez de points")
                     return
                 }
 
+                console.log("📍 Premier point:", points[0].x, points[0].y, points[0].z)
                 orbitPoints = points
-                console.log("Premier point:", points[0].x, points[0].y, points[0].z)
 
-                // Crée manuellement chaque sphère
+                // Créer une sphère pour chaque point
                 var createdCount = 0
                 for (var i = 0; i < points.length; i++) {
-                    var point = points[i]
+                    var pt = points[i]
 
-                    // Crée la sphère
                     var sphere = orbitPointComponent.createObject(orbitContainer, {
-                        "position": Qt.vector3d(point.x, point.y, point.z)
+                        "position": Qt.vector3d(pt.x, pt.y, pt.z)
                     })
 
-                    if (sphere) {
+                    if (sphere !== null) {
                         createdCount++
-                    } else {
-                        console.error("Échec création sphère", i)
                     }
                 }
 
-                console.log("✅", createdCount, "sphères créées sur", points.length)
+                console.log("✅ Orbite créée:", createdCount, "points sur", points.length)
             }
         }
 
@@ -191,18 +189,6 @@ Window {
 
             property var pos: orbitCalculator.getSatellitePosition(simTime)
             position: pos
-
-            // Traînée visuelle (optionnel)
-            Model {
-                source: "#Sphere"
-                scale: Qt.vector3d(0.5, 0.5, 0.5)
-                materials: PrincipledMaterial {
-                    baseColor: "#ff3333"
-                    alphaMode: PrincipledMaterial.Blend
-                    opacity: 0.1
-                    lighting: PrincipledMaterial.NoLighting
-                }
-            }
         }
 
         // ========================================

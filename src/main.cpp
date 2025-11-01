@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     orbitPath.setSemiMajorAxis(500.0);
     orbitPath.setEccentricity(0.3);
     orbitPath.setInclination(45.0);
-    orbitPath.setResolution(128);
+    orbitPath.setResolution(1024);
 
     // === Exposition à QML ===
     engine.rootContext()->setContextProperty("orbitCalculator", &orbitCalculator);

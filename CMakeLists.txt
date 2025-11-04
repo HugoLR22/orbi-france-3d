@@ -15,29 +15,48 @@ set(CMAKE_AUTOUIC ON)
 # Trouve les modules Qt nécessaires
 find_package(Qt6 REQUIRED COMPONENTS Core Quick Quick3D)
 
-# Fichiers sources
+# ============================================
+# FICHIERS SOURCES - Organisation par module
+# ============================================
+
 set(SOURCES
+    # Main
     src/main.cpp
+
+    # Module Orbit (calculs orbitaux)
     src/orbit/OrbitCalculator.cpp
     src/orbit/OrbitPath.cpp
+
+    # Module Data (gestion données satellites)
+    src/data/TLEParser.cpp
 )
 
 set(HEADERS
+    # Module Orbit
     src/orbit/OrbitCalculator.h
     src/orbit/OrbitPath.h
+
+    # Module Data
+    src/data/TLEParser.h
 )
 
 # Fichier de ressources Qt
 qt_add_resources(RESOURCES resources.qrc)
 
-# Création de l'exécutable
+# ============================================
+# CRÉATION DE L'EXÉCUTABLE
+# ============================================
+
 qt_add_executable(${PROJECT_NAME}
     ${SOURCES}
     ${HEADERS}
-    ${RESOURCES}      # inclut le .qrc compilé
+    ${RESOURCES}
 )
 
-# Lien avec les modules Qt nécessaires
+# ============================================
+# LIENS AVEC LES BIBLIOTHÈQUES Qt
+# ============================================
+
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
     Qt6::Core
@@ -45,12 +64,45 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Quick3D
 )
 
+# ============================================
+# COPIE DES DONNÉES
+# ============================================
+
 # Copie le dossier data/ dans le dossier de build pour accès à l'exécution
 set(DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data")
-file(COPY ${DATA_DIR} DESTINATION ${CMAKE_BINARY_DIR})
+if(EXISTS ${DATA_DIR})
+    file(COPY ${DATA_DIR} DESTINATION ${CMAKE_BINARY_DIR})
+    message(STATUS "✅ Dossier data/ copié vers ${CMAKE_BINARY_DIR}/data")
+else()
+    message(WARNING "⚠️ Dossier data/ non trouvé à ${DATA_DIR}")
+endif()
 
-# Définir le répertoire de sortie et activer le debug QML
+# ============================================
+# PROPRIÉTÉS DU PROJET
+# ============================================
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     QT_QML_DEBUG TRUE
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
+
+# ============================================
+# AFFICHAGE DES INFORMATIONS DE BUILD
+# ============================================
+
+message(STATUS "")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "🛰️  Configuration OrbiFrance 3D")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "Version:        ${PROJECT_VERSION}")
+message(STATUS "C++ Standard:   ${CMAKE_CXX_STANDARD}")
+message(STATUS "Qt Version:     ${Qt6_VERSION}")
+message(STATUS "Build Type:     ${CMAKE_BUILD_TYPE}")
+message(STATUS "Source Dir:     ${CMAKE_SOURCE_DIR}")
+message(STATUS "Build Dir:      ${CMAKE_BINARY_DIR}")
+message(STATUS "")
+message(STATUS "📦 Modules:")
+message(STATUS "  - Orbit: OrbitCalculator, OrbitPath")
+message(STATUS "  - Data:  TLEParser")
+message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+message(STATUS "")

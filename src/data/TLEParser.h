@@ -16,6 +16,11 @@ struct TLEData {
     int noradId;               // Numéro NORAD (identification unique)
     QString internationalDesignator;  // Désignation internationale
 
+    // === Lignes TLE brutes (pour libsgp4) ===
+    QString line0;             // Ligne 0 : nom
+    QString line1;             // Ligne 1 : paramètres généraux
+    QString line2;             // Ligne 2 : éléments orbitaux
+
     // === Époque ===
     QDateTime epoch;           // Date/heure de référence des éléments
     double epochYear;          // Année de l'époque

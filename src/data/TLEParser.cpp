@@ -10,6 +10,9 @@ const double MINUTES_PER_DAY = 1440.0;       // Minutes dans une journée
 TLEData TLEParser::parseTLE(const QString& line0, const QString& line1, const QString& line2)
 {
     TLEData tle = parseTLE(line1, line2);
+    tle.line0 = line0.trimmed();
+    tle.line1 = line1.trimmed();
+    tle.line2 = line2.trimmed();
     tle.name = line0.trimmed();
     return tle;
 }

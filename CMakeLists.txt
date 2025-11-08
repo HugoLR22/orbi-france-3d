@@ -16,6 +16,33 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Quick Quick3D)
 
 # ============================================
+# BIBLIOTHÈQUE EXTERNE : libsgp4
+# ============================================
+
+set(SGP4_DIR "${CMAKE_SOURCE_DIR}/external/sgp4/libsgp4")
+
+if(EXISTS ${SGP4_DIR})
+    message(STATUS "✅ libsgp4 trouvée: ${SGP4_DIR}")
+
+    # Fichiers sources de libsgp4 (format .cc)
+    file(GLOB SGP4_SOURCES "${SGP4_DIR}/*.cc")
+    file(GLOB SGP4_HEADERS "${SGP4_DIR}/*.h")
+
+    # Afficher les fichiers trouvés
+    list(LENGTH SGP4_SOURCES SGP4_SOURCE_COUNT)
+    message(STATUS "   ${SGP4_SOURCE_COUNT} fichiers .cc trouvés")
+
+    # Ajouter le répertoire d'includes
+    include_directories(${SGP4_DIR})
+
+else()
+    message(FATAL_ERROR "❌ libsgp4 non trouvée dans ${SGP4_DIR}")
+    message(FATAL_ERROR "   Vérifiez que le dossier external/sgp4/libsgp4 existe")
+    message(FATAL_ERROR "   Clonez la bibliothèque si nécessaire:")
+    message(FATAL_ERROR "   cd external && git clone https://github.com/dnwrnr/sgp4.git")
+endif()
+
+# ============================================
 # FICHIERS SOURCES - Organisation par module
 # ============================================
 
@@ -29,6 +56,10 @@ set(SOURCES
 
     # Module Data (gestion données satellites)
     src/data/TLEParser.cpp
+    src/data/SGP4Propagator.cpp
+
+    # Bibliothèque externe SGP4
+    ${SGP4_SOURCES}
 )
 
 set(HEADERS
@@ -38,6 +69,10 @@ set(HEADERS
 
     # Module Data
     src/data/TLEParser.h
+    src/data/SGP4Propagator.h
+
+    # Bibliothèque externe SGP4
+    ${SGP4_HEADERS}
 )
 
 # Fichier de ressources Qt
@@ -103,6 +138,6 @@ message(STATUS "Build Dir:      ${CMAKE_BINARY_DIR}")
 message(STATUS "")
 message(STATUS "📦 Modules:")
 message(STATUS "  - Orbit: OrbitCalculator, OrbitPath")
-message(STATUS "  - Data:  TLEParser")
+message(STATUS "  - Data:  TLEParser, SGP4Propagator")
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 message(STATUS "")

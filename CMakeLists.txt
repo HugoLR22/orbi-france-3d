@@ -36,7 +36,7 @@ if(EXISTS ${SGP4_DIR})
     include_directories(${SGP4_DIR})
 
 else()
-    message(FATAL_ERROR "❌ libsgp4 non trouvée dans ${SGP4_DIR}")
+    message(FATAL_ERROR "   libsgp4 non trouvée dans ${SGP4_DIR}")
     message(FATAL_ERROR "   Vérifiez que le dossier external/sgp4/libsgp4 existe")
     message(FATAL_ERROR "   Clonez la bibliothèque si nécessaire:")
     message(FATAL_ERROR "   cd external && git clone https://github.com/dnwrnr/sgp4.git")
@@ -57,6 +57,7 @@ set(SOURCES
     # Module Data (gestion données satellites)
     src/data/TLEParser.cpp
     src/data/SGP4Propagator.cpp
+    src/data/SatelliteDatabase.cpp
 
     # Bibliothèque externe SGP4
     ${SGP4_SOURCES}
@@ -70,6 +71,7 @@ set(HEADERS
     # Module Data
     src/data/TLEParser.h
     src/data/SGP4Propagator.h
+    src/data/SatelliteDatabase.h
 
     # Bibliothèque externe SGP4
     ${SGP4_HEADERS}
@@ -127,7 +129,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 message(STATUS "")
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-message(STATUS "🛰️  Configuration OrbiFrance 3D")
+message(STATUS " ️  Configuration OrbiFrance 3D")
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 message(STATUS "Version:        ${PROJECT_VERSION}")
 message(STATUS "C++ Standard:   ${CMAKE_CXX_STANDARD}")
@@ -136,7 +138,7 @@ message(STATUS "Build Type:     ${CMAKE_BUILD_TYPE}")
 message(STATUS "Source Dir:     ${CMAKE_SOURCE_DIR}")
 message(STATUS "Build Dir:      ${CMAKE_BINARY_DIR}")
 message(STATUS "")
-message(STATUS "📦 Modules:")
+message(STATUS "  Modules:")
 message(STATUS "  - Orbit: OrbitCalculator, OrbitPath")
 message(STATUS "  - Data:  TLEParser, SGP4Propagator")
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

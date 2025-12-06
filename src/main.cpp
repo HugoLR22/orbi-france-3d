@@ -7,110 +7,57 @@
 #include "orbit/OrbitPath.h"
 #include "data/TLEParser.h"
 #include "data/SGP4Propagator.h"
+#include "data/SatelliteDatabase.h"
 
 int main(int argc, char *argv[])
 {
     // ============================================
-    // TEST DU PARSER TLE + SGP4
+    // TEST DE LA BASE DE DONNÉES SATELLITES
     // ============================================
 
     qDebug() << "";
     qDebug() << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
-    qDebug() << "🧪 TEST COMPLET SGP4 + libsgp4";
+    qDebug() << "🧪 TEST SATELLITEDATABASE";
     qDebug() << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
+
+    SatelliteDatabase database;
+    database.loadFrenchSatellites();
+
+    qDebug() << "";
+    qDebug() << "📊 Statistiques:";
+    qDebug() << "  - Nombre total:" << database.count() << "satellites";
+    qDebug() << "  - Catégories:" << database.categories();
     qDebug() << "";
 
-    // TLE réel de SPOT 7 (satellite français d'observation)
-    QString line0 = "ISS ZARYA";
-    QString line1 = "1 25544U 98067A   25308.55131963  .00010237  00000+0  18874-3 0  9994";
-    QString line2 = "2 25544  51.6336 331.5320 0005028  16.6774 343.4380 15.49747070536934";
-
-    // Parser le TLE
-    TLEData tle = TLEParser::parseTLE(line0, line1, line2);
-
-    qDebug() << "📡 Satellite:" << tle.name;
-    qDebug() << "🆔 NORAD ID:" << tle.noradId;
-    qDebug() << "📅 Époque:" << tle.epoch.toString("yyyy-MM-dd HH:mm:ss UTC");
-    qDebug() << "📐 Inclinaison:" << tle.inclination << "°";
-    qDebug() << "🌍 Altitude:" << QString::number(tle.altitude, 'f', 1) << "km";
-    qDebug() << "⏱️  Période:" << QString::number(tle.period, 'f', 2) << "min";
-    qDebug() << "🎯 Excentricité:" << QString::number(tle.eccentricity, 'f', 6);
-    qDebug() << "";
-
-    // Initialiser le propagateur SGP4
-    SGP4Propagator propagator;
-    if (!propagator.initialize(tle)) {
-        qCritical() << "❌ Échec initialisation SGP4";
-        return -1;
+    // Lister tous les satellites
+    qDebug() << "📡 Liste des satellites:";
+    QVariantList allSats = database.getAllSatellites();
+    for (const QVariant& satVar : allSats) {
+        QVariantMap sat = satVar.toMap();
+        qDebug() << QString("  - %1 (%2) - %3 km - %4")
+                        .arg(sat["name"].toString(), -20)
+                        .arg(sat["category"].toString(), -15)
+                        .arg(sat["altitude"].toDouble(), 7, 'f', 1)
+                        .arg(sat["color"].toString());
     }
 
     qDebug() << "";
-    qDebug() << "🔄 === SIMULATION D'UNE ORBITE COMPLÈTE ===";
-    qDebug() << "";
+    qDebug() << "🎯 Test calcul positions à l'époque:";
+    QDateTime testTime = QDateTime::currentDateTimeUtc();
+    QVariantList positions = database.calculateAllPositions(testTime);
 
-    // Test sur une orbite complète (9 points pour faire le tour complet)
-    double periodSeconds = tle.period * 60.0;
-    QDateTime startTime = tle.epoch;
-
-    qDebug() << QString("%-10s %-20s %-12s %-12s %-12s %-10s")
-                    .arg("Temps")
-                    .arg("Date/Heure")
-                    .arg("X (km)")
-                    .arg("Y (km)")
-                    .arg("Z (km)")
-                    .arg("Dist (km)");
-    qDebug() << QString("-").repeated(90);
-
-    for (int i = 0; i <= 8; i++) {
-        double t = (periodSeconds * i) / 8.0;
-        QDateTime currentTime = startTime.addSecs(static_cast<qint64>(t));
-
-        QVector3D pos = propagator.getPositionECI(currentTime);
-        double distance = pos.length();
-
-        qDebug() << QString("t+%1min  %2  %3  %4  %5  %6")
-                        .arg(t/60.0, 6, 'f', 1)
-                        .arg(currentTime.toString("HH:mm:ss"))
-                        .arg(pos.x(), 9, 'f', 1)
-                        .arg(pos.y(), 9, 'f', 1)
-                        .arg(pos.z(), 9, 'f', 1)
-                        .arg(distance, 8, 'f', 1);
+    for (const QVariant& posVar : positions) {
+        QVariantMap pos = posVar.toMap();
+        qDebug() << QString("  %1: pos(%2, %3, %4) alt=%5 km")
+                        .arg(pos["name"].toString(), -20)
+                        .arg(pos["x"].toDouble(), 6, 'f', 2)
+                        .arg(pos["y"].toDouble(), 6, 'f', 2)
+                        .arg(pos["z"].toDouble(), 6, 'f', 2)
+                        .arg(pos["altitude"].toDouble(), 7, 'f', 1);
     }
 
     qDebug() << "";
-    qDebug() << "🎯 === TEST POSITION + VITESSE ===";
-    qDebug() << "";
-
-    QVector3D position, velocity;
-    if (propagator.propagate(startTime, position, velocity)) {
-        double speed = velocity.length();
-        double altitudeCalc = position.length() - 6371.0;  // Rayon terrestre
-
-        qDebug() << "📍 Position ECI (à l'époque):";
-        qDebug() << "   X =" << QString::number(position.x(), 'f', 3) << "km";
-        qDebug() << "   Y =" << QString::number(position.y(), 'f', 3) << "km";
-        qDebug() << "   Z =" << QString::number(position.z(), 'f', 3) << "km";
-        qDebug() << "   Distance au centre =" << QString::number(position.length(), 'f', 2) << "km";
-        qDebug() << "   Altitude ≈" << QString::number(altitudeCalc, 'f', 1) << "km";
-        qDebug() << "";
-        qDebug() << "🚀 Vitesse ECI:";
-        qDebug() << "   Vx =" << QString::number(velocity.x(), 'f', 3) << "km/s";
-        qDebug() << "   Vy =" << QString::number(velocity.y(), 'f', 3) << "km/s";
-        qDebug() << "   Vz =" << QString::number(velocity.z(), 'f', 3) << "km/s";
-        qDebug() << "   Vitesse totale =" << QString::number(speed, 'f', 3) << "km/s";
-        qDebug() << "";
-
-        // Conversion pour affichage 3D
-        QVector3D displayPos = SGP4Propagator::eciToDisplay(position);
-        qDebug() << "🎨 Position pour Qt Quick 3D:";
-        qDebug() << "   X =" << QString::number(displayPos.x(), 'f', 2);
-        qDebug() << "   Y =" << QString::number(displayPos.y(), 'f', 2);
-        qDebug() << "   Z =" << QString::number(displayPos.z(), 'f', 2);
-        qDebug() << "   Distance =" << QString::number(displayPos.length(), 'f', 2) << "unités Qt";
-    }
-
-    qDebug() << "";
-    qDebug() << "✅ Test SGP4 terminé avec succès !";
+    qDebug() << "✅ Test SatelliteDatabase terminé avec succès !";
     qDebug() << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
     qDebug() << "";
 
@@ -126,8 +73,7 @@ int main(int argc, char *argv[])
     OrbitCalculator orbitCalculator;
     OrbitPath orbitPath;
 
-    // ⚠️ IMPORTANT: Synchroniser les paramètres orbitaux
-    // Ces valeurs doivent correspondre à celles dans OrbitCalculator::getSatellitePosition()
+    // Configuration orbite de démonstration (pour l'ancien système)
     double semiMajorAxis = 500.0;
     double eccentricity = 0.3;
     double inclination = 45.0;
@@ -135,22 +81,25 @@ int main(int argc, char *argv[])
     orbitPath.setSemiMajorAxis(semiMajorAxis);
     orbitPath.setEccentricity(eccentricity);
     orbitPath.setInclination(inclination);
-    orbitPath.setResolution(256);  // Plus de points = ligne plus continue
+    orbitPath.setResolution(256);
+
+    // === BASE DE DONNÉES SATELLITES (NOUVEAU) ===
+    SatelliteDatabase* satelliteDB = new SatelliteDatabase(&app);
+    satelliteDB->loadFrenchSatellites();
 
     qDebug() << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
     qDebug() << "🎬 Démarrage de l'application 3D";
     qDebug() << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
     qDebug() << "";
-    qDebug() << "Configuration orbite de démonstration:";
-    qDebug() << "  - Demi-grand axe:" << semiMajorAxis << "km";
-    qDebug() << "  - Excentricité:" << eccentricity;
-    qDebug() << "  - Inclinaison:" << inclination << "°";
-    qDebug() << "  - Résolution:" << 256 << "points";
+    qDebug() << "🛰️  Base de données:";
+    qDebug() << "  -" << satelliteDB->count() << "satellites français chargés";
+    qDebug() << "  - Catégories:" << satelliteDB->categories();
     qDebug() << "";
 
-    // === Exposition à QML - IMPORTANT: faire AVANT de charger le QML ===
+    // === Exposition à QML ===
     engine.rootContext()->setContextProperty("orbitCalculator", &orbitCalculator);
     engine.rootContext()->setContextProperty("orbitPath", &orbitPath);
+    engine.rootContext()->setContextProperty("satelliteDatabase", satelliteDB);  // NOUVEAU
 
     // === Chargement du QML ===
     const QUrl url(QStringLiteral("qrc:/res/qml/main.qml"));

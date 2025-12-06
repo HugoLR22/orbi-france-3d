@@ -23,10 +23,10 @@ TLEData TLEParser::parseTLE(const QString& line1, const QString& line2)
 
     // Vérification des checksums
     if (!verifyChecksum(line1)) {
-        qWarning() << "❌ Checksum invalide ligne 1:" << line1;
+        qWarning() << " Checksum invalide ligne 1:" << line1;
     }
     if (!verifyChecksum(line2)) {
-        qWarning() << "❌ Checksum invalide ligne 2:" << line2;
+        qWarning() << " Checksum invalide ligne 2:" << line2;
     }
 
     // === PARSING LIGNE 1 ===
@@ -108,7 +108,7 @@ void TLEData::calculateDerivedParameters()
     altitude = semiMajorAxis - EARTH_RADIUS_KM;
 
     // Log pour debug
-    qDebug() << "📊 Paramètres calculés:";
+    qDebug() << "   Paramètres calculés:";
     qDebug() << "   Période:" << period << "min";
     qDebug() << "   Demi-grand axe:" << semiMajorAxis << "km";
     qDebug() << "   Altitude:" << altitude << "km";

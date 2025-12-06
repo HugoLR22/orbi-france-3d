@@ -31,7 +31,7 @@ bool SGP4Propagator::initialize(const TLEData& tle)
 
         // Vérifier que les lignes TLE brutes sont disponibles
         if (tle.line1.isEmpty() || tle.line2.isEmpty()) {
-            qCritical() << "❌ Lignes TLE brutes manquantes";
+            qCritical() << " Lignes TLE brutes manquantes";
             m_initialized = false;
             return false;
         }
@@ -46,7 +46,7 @@ bool SGP4Propagator::initialize(const TLEData& tle)
 
         m_initialized = true;
 
-        qDebug() << "✅ SGP4 (libsgp4) initialisé pour:" << m_satelliteName;
+        qDebug() << "   SGP4 (libsgp4) initialisé pour:" << m_satelliteName;
         qDebug() << "   Altitude:" << tle.altitude << "km";
         qDebug() << "   Inclinaison:" << tle.inclination << "°";
         qDebug() << "   Période:" << tle.period << "min";
@@ -55,7 +55,7 @@ bool SGP4Propagator::initialize(const TLEData& tle)
         return true;
 
     } catch (const std::exception& e) {
-        qCritical() << "❌ Erreur initialisation SGP4:" << e.what();
+        qCritical() << " Erreur initialisation SGP4:" << e.what();
         m_initialized = false;
         emit propagationError(QString("Erreur SGP4: %1").arg(e.what()));
         return false;
@@ -110,7 +110,7 @@ double SGP4Propagator::minutesSinceEpoch(const QDateTime& dateTime) const
 QVector3D SGP4Propagator::getPositionECI(const QDateTime& dateTime) const
 {
     if (!m_initialized || !m_tleObj || !m_sgp4) {
-        qWarning() << "❌ SGP4 non initialisé correctement";
+        qWarning() << " SGP4 non initialisé correctement";
 
         // Fallback sur calcul simplifié
         double secondsSince = minutesSinceEpoch(dateTime) * 60.0;
@@ -130,7 +130,7 @@ QVector3D SGP4Propagator::getPositionECI(const QDateTime& dateTime) const
         return QVector3D(pos.x, pos.y, pos.z);
 
     } catch (const std::exception& e) {
-        qWarning() << "❌ Erreur propagation SGP4:" << e.what();
+        qWarning() << " Erreur propagation SGP4:" << e.what();
         emit const_cast<SGP4Propagator*>(this)->propagationError(QString(e.what()));
         return QVector3D(0, 0, 0);
     }
@@ -180,7 +180,7 @@ bool SGP4Propagator::propagate(const QDateTime& dateTime, QVector3D& position, Q
         return true;
 
     } catch (const std::exception& e) {
-        qWarning() << "❌ Erreur propagation:" << e.what();
+        qWarning() << " Erreur propagation:" << e.what();
         emit const_cast<SGP4Propagator*>(this)->propagationError(QString(e.what()));
         return false;
     }
@@ -189,11 +189,19 @@ bool SGP4Propagator::propagate(const QDateTime& dateTime, QVector3D& position, Q
 QVector3D SGP4Propagator::eciToDisplay(const QVector3D& eci, double scale)
 {
     // ECI est en kilomètres, centré sur la Terre
-    // Conversion pour Qt Quick 3D où la Terre a scale=3
+    // Conversion pour Qt Quick 3D où :
+    // - #Sphere a un DIAMÈTRE de 100 unités par défaut
+    // - La Terre a scale=3, donc diamètre = 100 * 3 = 300 unités Qt
+    // - Rayon terrestre réel = 6371 km
+    // - Donc : 1 unité Qt = (6371 * 2) / 300 = 42.47 km
 
-    // Si Terre scale=3 et rayon réel=6371 km
-    // alors 1 unité Qt = 6371/3 = 2123.67 km
-    double qtUnitToKm = EARTH_RADIUS_KM / 3.0;
+    const double SPHERE_DEFAULT_DIAMETER = 100.0;
+    const double EARTH_SCALE = 3.0;
+    const double EARTH_DIAMETER_UNITS = SPHERE_DEFAULT_DIAMETER * EARTH_SCALE;  // 300
+    const double EARTH_DIAMETER_KM = EARTH_RADIUS_KM * 2.0;  // 12742 km
+
+    // 1 unité Qt = combien de km
+    double qtUnitToKm = EARTH_DIAMETER_KM / EARTH_DIAMETER_UNITS;  // 42.47 km/unité
 
     return QVector3D(
         eci.x() / qtUnitToKm * scale,

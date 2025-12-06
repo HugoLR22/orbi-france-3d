@@ -10,6 +10,27 @@ Window {
 
     property double simTime: 0
 
+    // === GESTION DU TEMPS ===
+    property date baseTime: new Date()  // Temps de référence (maintenant)
+    property double timeOffset: 0        // Offset en secondes depuis baseTime
+    property double timeScale: 60.0       // Échelle de temps (1 = temps réel, 60 = 1 min/sec)
+    property bool timeRunning: true     // Animation temporelle active
+
+    // Timer pour l'animation temporelle
+    Timer {
+        id: timeAnimationTimer
+        interval: 16  //60 FPS
+        repeat: true
+        running: timeRunning
+        onTriggered: {
+            // Avancer le temps selon l'échelle
+            timeOffset += (interval / 1000.0) * timeScale
+        }
+    }
+
+    // Temps simulé actuel
+    property date currentSimulatedTime: new Date(baseTime.getTime() + timeOffset * 1000)
+
     // === PROPRIÉTÉS DE CONTRÔLE CAMÉRA ===
     property real cameraDistance: 1000
     property real cameraRotationX: -20
@@ -18,7 +39,7 @@ Window {
     property real cameraPanY: 0
 
     // === OPTIONS D'AFFICHAGE ORBITE ===
-    property bool showOrbitLine: true
+    property bool showOrbits: true
 
     // États de la souris
     property bool isDragging: false
@@ -164,76 +185,125 @@ Window {
         }
 
         // ========================================
-        // TRAJECTOIRE ORBITALE - LIGNE SIMULÉE
+        // SATELLITES RÉELS
+        // ========================================
+        SatelliteRenderer {
+            id: satelliteRenderer
+            currentTime: currentSimulatedTime  // Utilise le temps simulé
+            autoUpdate: true
+            updateInterval: 100  // Mise à jour plus fréquente (10 FPS)
+        }
+
+        // ========================================
+        // ORBITES DES SATELLITES
         // ========================================
         Node {
-            id: orbitContainer
-            visible: showOrbitLine
+            id: orbitRendererNode
+            visible: showOrbits
 
-            property var orbitPoints: []
+            property int orbitResolution: 64
+            property var orbitObjects: ({})
 
             Component {
                 id: orbitPointComponent
 
                 Model {
                     source: "#Sphere"
-                    scale: Qt.vector3d(0.015, 0.015, 0.015)  // Très petites sphères
+                    scale: Qt.vector3d(0.05, 0.05, 0.05)
+
+                    property color pointColor: "#00ff88"
 
                     materials: PrincipledMaterial {
+                        baseColor: pointColor
                         lighting: PrincipledMaterial.NoLighting
-                        emissiveFactor: Qt.vector3d(1.5, 1.5, 1.5)
+                        emissiveFactor: Qt.vector3d(1.0, 1.0, 1.0)
+                        opacity: 0.6
+                        alphaMode: PrincipledMaterial.Blend
                     }
                 }
             }
 
-            Component.onCompleted: {
-                var points = orbitPath.generateOrbitPoints()
-                console.log("🛰️ Génération orbite:", points.length, "points")
+            function calculateOrbitPoints(satellite) {
+                var positions = []
+                var period = satellite.period * 60
+                var referenceTime = new Date()
 
-                if (points.length < 2) {
-                    console.warn("Pas assez de points")
+                for (var i = 0; i <= orbitResolution; i++) {
+                    var timeOffset = (period * i) / orbitResolution
+                    var pointTime = new Date(referenceTime.getTime() + timeOffset * 1000)
+                    var satPositions = satelliteDatabase.calculateAllPositions(pointTime)
+
+                    for (var j = 0; j < satPositions.length; j++) {
+                        if (satPositions[j].id === satellite.id) {
+                            positions.push({
+                                x: satPositions[j].x,
+                                y: satPositions[j].y,
+                                z: satPositions[j].z
+                            })
+                            break
+                        }
+                    }
+                }
+
+                return positions
+            }
+
+            function createOrbitForSatellite(sat) {
+                var points = calculateOrbitPoints(sat)
+
+                if (points.length === 0) {
+                    console.warn("  ⚠️ Aucun point pour", sat.name)
                     return
                 }
 
-                console.log("📍 Premier point:", points[0].x, points[0].y, points[0].z)
-                orbitPoints = points
+                if (!orbitObjects[sat.id]) {
+                    orbitObjects[sat.id] = []
+                }
 
-                // Créer une sphère pour chaque point
-                var createdCount = 0
-                for (var i = 0; i < points.length; i++) {
-                    var pt = points[i]
+                // Nettoyer l'ancienne orbite
+                for (var i = 0; i < orbitObjects[sat.id].length; i++) {
+                    if (orbitObjects[sat.id][i]) {
+                        orbitObjects[sat.id][i].destroy()
+                    }
+                }
+                orbitObjects[sat.id] = []
 
-                    var sphere = orbitPointComponent.createObject(orbitContainer, {
-                        "position": Qt.vector3d(pt.x, pt.y, pt.z)
+                // Créer les points
+                for (var j = 0; j < points.length; j++) {
+                    var pt = points[j]
+
+                    var sphere = orbitPointComponent.createObject(orbitRendererNode, {
+                        "position": Qt.vector3d(pt.x, pt.y, pt.z),
+                        "pointColor": sat.color
                     })
 
-                    if (sphere !== null) {
-                        createdCount++
+                    if (sphere) {
+                        orbitObjects[sat.id].push(sphere)
                     }
                 }
 
-                console.log("✅ Orbite créée:", createdCount, "points sur", points.length)
-            }
-        }
-
-        // ========================================
-        // SATELLITE
-        // ========================================
-        Model {
-            id: satellite
-            source: "#Sphere"
-            scale: Qt.vector3d(0.2, 0.2, 0.2)
-
-            materials: PrincipledMaterial {
-                baseColor: "#ff3333"
-                metalness: 0.8
-                roughness: 0.3
-                // Légère émission pour visibilité dans l'ombre
-                emissiveFactor: Qt.vector3d(0.2, 0.05, 0.05)
+                console.log("  ✅", sat.name, ":", orbitObjects[sat.id].length, "points")
             }
 
-            property var pos: orbitCalculator.getSatellitePosition(simTime)
-            position: pos
+            function updateOrbits() {
+                console.log("🔄 Génération des orbites...")
+                var satellites = satelliteDatabase.getAllSatellites()
+
+                for (var i = 0; i < satellites.length; i++) {
+                    createOrbitForSatellite(satellites[i])
+                }
+
+                console.log("✅", satellites.length, "orbites générées")
+            }
+
+            function reloadOrbits() {
+                updateOrbits()
+            }
+
+            Component.onCompleted: {
+                console.log("🛰️ OrbitRenderer initialisé")
+                Qt.callLater(updateOrbits)
+            }
         }
     }
 
@@ -298,7 +368,7 @@ Window {
             left: parent.left
             right: parent.right
         }
-        height: 120
+        height: 150
         color: "#cc000000"
 
         Column {
@@ -321,28 +391,76 @@ Window {
 
                 Slider {
                     id: timeSlider
-                    width: parent.width - 180
-                    from: 0
-                    to: 100
-                    value: 0
-                    onValueChanged: simTime = value
+                    width: parent.width - 260
+                    from: -86400  // -24h
+                    to: 86400     // +24h
+                    value: timeOffset
+                    onMoved: {
+                        timeOffset = value
+                    }
                 }
 
                 Text {
-                    text: simTime.toFixed(1) + " s"
-                    color: "white"
+                    text: (timeOffset / 3600).toFixed(1) + " h"
+                    color: "#00ff88"
                     width: 80
                     verticalAlignment: Text.AlignVCenter
                     height: timeSlider.height
                 }
+
+                Button {
+                    text: "⏮️"
+                    width: 40
+                    onClicked: timeOffset = 0
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Revenir au temps actuel"
+                }
             }
 
-            // Boutons de contrôle
+            // Contrôle de la vitesse de simulation
+            Row {
+                width: parent.width
+                spacing: 10
+
+                Text {
+                    text: "Vitesse:"
+                    color: "white"
+                    width: 80
+                    verticalAlignment: Text.AlignVCenter
+                    height: speedSlider.height
+                }
+
+                Slider {
+                    id: speedSlider
+                    width: parent.width - 180
+                    from: 0
+                    to: 200
+                    value: timeScale
+                    onMoved: timeScale = value
+                }
+
+                Text {
+                    text: timeScale.toFixed(0) + "x"
+                    color: "#00ff88"
+                    width: 80
+                    verticalAlignment: Text.AlignVCenter
+                    height: speedSlider.height
+                }
+            }
+
+            // Boutons de contrôle essentiels
             Row {
                 spacing: 10
 
                 Button {
-                    text: "📷 Réinitialiser Vue"
+                    text: timeRunning ? "⏸️ Pause" : "▶️ Play"
+                    onClicked: timeRunning = !timeRunning
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Pause/Reprendre la simulation temporelle"
+                }
+
+                Button {
+                    text: "📷 Reset Vue"
                     onClicked: {
                         cameraDistance = 1000
                         cameraRotationX = -20
@@ -350,19 +468,32 @@ Window {
                         cameraPanX = 0
                         cameraPanY = 0
                     }
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Réinitialise la position de la caméra"
                 }
 
                 Button {
-                    text: showOrbitLine ? "🔴 Masquer Orbite" : "🟢 Afficher Orbite"
-                    onClicked: showOrbitLine = !showOrbitLine
+                    text: showOrbits ? "🌐 Masquer Orbites" : "🌐 Afficher Orbites"
+                    onClicked: showOrbits = !showOrbits
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Affiche/masque les trajectoires orbitales"
+                }
+
+                // Séparateur visuel
+                Rectangle {
+                    width: 2
+                    height: parent.height
+                    color: "#333333"
                 }
 
                 Text {
-                    text: "Distance: " + cameraDistance.toFixed(0)
-                    color: "#888888"
+                    text: "🛰️ " + satelliteDatabase.count + " satellites"
+                    color: "#00ff88"
                     verticalAlignment: Text.AlignVCenter
                     height: parent.height
-                    leftPadding: 20
+                    leftPadding: 10
+                    font.bold: true
+                    font.pixelSize: 13
                 }
             }
         }
@@ -397,7 +528,7 @@ Window {
                 font.pixelSize: 12
             }
             Text {
-                text: "✋ Clic droit : Déplacement"
+                text: "✋ Clic droit : Déplacement (Pan)"
                 color: "white"
                 font.pixelSize: 12
             }
@@ -409,45 +540,188 @@ Window {
         }
     }
 
-    // Informations de debug (coin supérieur gauche)
+    // Informations satellites détaillées
     Rectangle {
         anchors {
             top: parent.top
             left: parent.left
             margins: 10
         }
-        width: 200
-        height: debugColumn.height + 20
+        width: 320
+        height: satelliteListColumn.height + 20
         color: "#cc000000"
         radius: 5
 
         Column {
-            id: debugColumn
+            id: satelliteListColumn
             anchors.centerIn: parent
-            spacing: 3
+            width: parent.width - 20
+            spacing: 5
 
-            Text {
-                text: "🛰️ SATELLITE"
-                color: "#ff3333"
-                font.bold: true
-                font.pixelSize: 12
+            // En-tête
+            Row {
+                width: parent.width
+                spacing: 10
+
+                Text {
+                    text: "🛰️ SATELLITES FRANÇAIS (" + satelliteDatabase.count + ")"
+                    color: "#00ff88"
+                    font.bold: true
+                    font.pixelSize: 13
+                }
+
+                Button {
+                    text: showDetailedInfo ? "▼" : "▶"
+                    width: 30
+                    height: 20
+                    onClicked: showDetailedInfo = !showDetailedInfo
+                }
             }
-            Text {
-                text: "Position X: " + satellite.pos.x.toFixed(1)
-                color: "white"
-                font.pixelSize: 10
+
+            // Liste des satellites
+            Repeater {
+                model: satelliteDatabase.calculateAllPositions(currentSimulatedTime)
+
+                delegate: Column {
+                    width: satelliteListColumn.width
+                    spacing: 2
+
+                    Rectangle {
+                        width: parent.width
+                        height: 24
+                        color: satelliteMouseArea.containsMouse ? "#22ffffff" : "transparent"
+                        radius: 3
+
+                        MouseArea {
+                            id: satelliteMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                selectedSatelliteId = (selectedSatelliteId === modelData.id) ? "" : modelData.id
+                            }
+                        }
+
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: 5
+                            spacing: 8
+
+                            Rectangle {
+                                width: 14
+                                height: 14
+                                radius: 7
+                                color: modelData.color
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                SequentialAnimation on opacity {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 0.6; duration: 1000 }
+                                    NumberAnimation { to: 1.0; duration: 1000 }
+                                }
+                            }
+
+                            Text {
+                                text: modelData.name
+                                color: "white"
+                                font.pixelSize: 11
+                                font.bold: selectedSatelliteId === modelData.id
+                                width: 140
+                                elide: Text.ElideRight
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Text {
+                                text: modelData.category
+                                color: "#888888"
+                                font.pixelSize: 9
+                                width: 80
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Text {
+                                text: selectedSatelliteId === modelData.id ? "▼" : "▶"
+                                color: "#00ff88"
+                                font.pixelSize: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: showDetailedInfo
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: detailsColumn.height + 10
+                        color: "#11ffffff"
+                        radius: 3
+                        visible: showDetailedInfo && selectedSatelliteId === modelData.id
+
+                        Column {
+                            id: detailsColumn
+                            anchors.centerIn: parent
+                            width: parent.width - 10
+                            spacing: 5
+
+                            Row {
+                                spacing: 5
+                                Text {
+                                    text: "🌍 Altitude:"
+                                    color: "#00ff88"
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                }
+                                Text {
+                                    text: modelData.altitude.toFixed(1) + " km"
+                                    color: "white"
+                                    font.pixelSize: 10
+                                }
+                            }
+
+                            Row {
+                                spacing: 5
+                                Text {
+                                    text: "🚀 Vitesse:"
+                                    color: "#00ff88"
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                }
+                                Text {
+                                    text: modelData.speed.toFixed(3) + " km/s"
+                                    color: "white"
+                                    font.pixelSize: 10
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: "#333333"
+                    }
+                }
             }
-            Text {
-                text: "Position Y: " + satellite.pos.y.toFixed(1)
-                color: "white"
-                font.pixelSize: 10
-            }
-            Text {
-                text: "Position Z: " + satellite.pos.z.toFixed(1)
-                color: "white"
-                font.pixelSize: 10
+
+            // Affichage du temps simulé
+            Rectangle {
+                width: parent.width
+                height: 25
+                color: "#11ffffff"
+                radius: 3
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "⏱️ " + currentSimulatedTime.toLocaleString(Qt.locale(), "dd/MM/yyyy HH:mm:ss")
+                    color: "#00ff88"
+                    font.pixelSize: 10
+                    font.bold: true
+                }
             }
         }
     }
-}
 
+    property string selectedSatelliteId: ""
+    property bool showDetailedInfo: true
+}
